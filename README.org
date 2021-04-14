@@ -1,0 +1,15 @@
+#+TITLE: containerd-to-vm
+#+AUTHOR: franck cuny <franck@fcuny.net>
+
+* What
+A recent [[https://fly.io/blog/docker-without-docker/][article]] from the team at [[https://fly.io][fly.io]] described how they build VMs for firecracker from the docker image provided by their customers. They outline the following steps:
+
+1. Pull the matching container from the registry.
+2. Create a loop device to store the container's filesystem on.
+3. Unpack the container (in this case, using Docker's Go libraries) into the mounted loop device.
+4. Create a second block device and inject our init, kernel, configuration, and other goop into.
+5. Track down any persistent volumes attached to the application, unlock them with LUKS, and collect their unlocked block devices.
+6. Create a TAP device, configure it for our network, and attach BPF code to it.
+7. Hand all this stuff off to Firecracker and tell it to boot .
+
+As I've been interested in playing with both containerd's API and firecracker, I thought it would be a good opportunity to try to implement this.
