@@ -42,6 +42,12 @@ func main() {
 	defer client.Close()
 
 	ctx := namespaces.WithNamespace(context.Background(), defaultNamespace)
+	ctx, done, err := client.WithLease(ctx)
+	if err != nil {
+		log.Fatalf("failed to get a lease: %v", err)
+	}
+	defer done(ctx)
+
 	image, err := client.Pull(ctx, *containerName, containerd.WithPlatformMatcher(platform))
 	if err != nil {
 		log.Fatalf("failed to pull the container %s: %v\n", *containerName, err)
