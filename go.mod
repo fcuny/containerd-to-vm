@@ -9,9 +9,12 @@ require (
 	github.com/containerd/continuity v0.0.0-20210315143101-93e15499afd5 // indirect
 	github.com/containerd/fifo v0.0.0-20210331061852-650e8a8a179d // indirect
 	github.com/containerd/typeurl v1.0.2 // indirect
+	github.com/docker/docker v20.10.6+incompatible
 	github.com/gogo/googleapis v1.4.1 // indirect
 	github.com/google/go-cmp v0.5.5 // indirect
+	github.com/google/renameio v0.1.0
 	github.com/google/uuid v1.2.0 // indirect
+	github.com/moby/sys/mount v0.2.0 // indirect
 	github.com/opencontainers/image-spec v1.0.1
 	github.com/sirupsen/logrus v1.8.1 // indirect
 	golang.org/x/net v0.0.0-20210410081132-afb366fc7cd1 // indirect
