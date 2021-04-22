@@ -1,13 +1,17 @@
 package main
 
 import (
+	"bufio"
 	"context"
+	"encoding/json"
 	"flag"
 	"fmt"
 	"io/ioutil"
 	"log"
+	"os"
 	"os/exec"
 	"path/filepath"
+	"strings"
 
 	"github.com/containerd/containerd"
 	"github.com/containerd/containerd/content"
@@ -79,6 +83,10 @@ func main() {
 
 	if err := extract(ctx, client, image, mntDir); err != nil {
 		log.Fatalf("failed to extract the container: %v\n", err)
+	}
+
+	if err = initScript(ctx, client, image, mntDir); err != nil {
+		log.Fatalf("failed to create init script: %s\n", err)
 	}
 
 	if err = extraFiles(mntDir); err != nil {
@@ -169,6 +177,41 @@ func extraFiles(mntDir string) error {
 	if err := writeToFile(filepath.Join(mntDir, "etc", "resolv.conf"), "nameserver 192.168.0.1\n"); err != nil {
 		return err
 	}
+	return nil
+}
+
+func initScript(ctx context.Context, client *containerd.Client, image containerd.Image, mntDir string) error {
+	config, err := images.Config(ctx, client.ContentStore(), image.Target(), platform)
+	if err != nil {
+		return err
+	}
+
+	configBlob, err := content.ReadBlob(ctx, client.ContentStore(), config)
+	var imageSpec ocispec.Image
+	json.Unmarshal(configBlob, &imageSpec)
+	initCmd := strings.Join(imageSpec.Config.Cmd, " ")
+	initEnvs := imageSpec.Config.Env
+
+	initPath := filepath.Join(mntDir, "init.sh")
+	f, err := renameio.TempFile("", initPath)
+	if err != nil {
+		return err
+	}
+	defer f.Cleanup()
+
+	writer := bufio.NewWriter(f)
+	fmt.Fprintf(writer, "#!/bin/sh\n")
+	for _, env := range initEnvs {
+		fmt.Fprintf(writer, "export %s\n", env)
+	}
+	fmt.Fprintf(writer, "%s\n", initCmd)
+	writer.Flush()
+
+	f.CloseAtomicallyReplace()
+
+	mode := int(0755)
+	os.Chmod(initPath, os.FileMode(mode))
+	log.Printf("init script created")
 	return nil
 }
 
