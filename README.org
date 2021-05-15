@@ -13,3 +13,19 @@ A recent [[https://fly.io/blog/docker-without-docker/][article]] from the team a
 7. Hand all this stuff off to Firecracker and tell it to boot .
 
 As I've been interested in playing with both containerd's API and firecracker, I thought it would be a good opportunity to try to implement this.
+* How
+You'll need a few things before you can run this tool.
+** Kernel
+You'll need a kernel to run this. The following instructions should do it (to get a 5.8 kernel):
+#+begin_src sh
+git clone https://github.com/torvalds/linux.git linux.git
+cd linux.git
+git checkout v5.8
+curl -o .config -s https://github.com/firecracker-microvm/firecracker/blob/main/resources/microvm-kernel-x86_64.config
+make menuconfig
+make vmlinux -j8
+#+end_src
+** CNI
+You need CNI plugins and configurations installed. The recommended configuration is stored under ~hack/cni~. It needs to be copied to ~/etc/cni/conf.d~.
+** Firecracker binaries
+Running ~make firecracker-binary~ will download a version of firecracker under the directory ~hack/firecracker~.
