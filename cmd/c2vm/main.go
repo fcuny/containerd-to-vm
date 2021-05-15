@@ -255,7 +255,7 @@ func bootVM(ctx context.Context, rawImage, linuxKernel, firecrackerBinary string
 		LogLevel:        "debug",
 		SocketPath:      firecrackerSock,
 		KernelImagePath: linuxKernel,
-		KernelArgs:      "console=ttyS0 reboot=k panic=1 pci=off init=/init.sh random.trust_cpu=on",
+		KernelArgs:      "console=ttyS0 reboot=k panic=1 acpi=off pci=off i8042.noaux i8042.nomux i8042.nopnp i8042.dumbkbd init=/init.sh random.trust_cpu=on",
 		Drives:          devices,
 		MachineCfg: models.MachineConfiguration{
 			VcpuCount:   firecracker.Int64(1),
