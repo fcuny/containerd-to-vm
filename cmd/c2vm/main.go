@@ -19,6 +19,8 @@ import (
 	"github.com/containerd/containerd/namespaces"
 	"github.com/containerd/containerd/platforms"
 	"github.com/docker/docker/pkg/archive"
+	"github.com/firecracker-microvm/firecracker-go-sdk"
+	"github.com/firecracker-microvm/firecracker-go-sdk/client/models"
 	"github.com/google/renameio"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 )
@@ -29,7 +31,8 @@ const (
 )
 
 var (
-	platform = platforms.Only(ocispec.Platform{
+	firecrackerSock = filepath.Join(os.Getenv("XDG_RUNTIME_DIR"), "firecracker.sock")
+	platform        = platforms.Only(ocispec.Platform{
 		OS:           "linux",
 		Architecture: "amd64",
 	})
@@ -37,14 +40,24 @@ var (
 
 func main() {
 	var (
-		containerName = flag.String("container", "", "Name of the container")
-		outFile       = flag.String("out", "container.img", "firecracker output to create")
+		containerName     = flag.String("container", "", "Name of the container")
+		outFile           = flag.String("out", "container.img", "firecracker output to create")
+		linuxKernel       = flag.String("linux-kernel", "", "path to the linux kernel to use")
+		firecrackerBinary = flag.String("firecracker-binary", "", "path to the firecracker binary")
 	)
 
 	flag.Parse()
 
 	if *containerName == "" {
 		log.Fatal("a container is required")
+	}
+
+	if *linuxKernel == "" {
+		log.Fatalf("a linux kernel is required")
+	}
+
+	if *firecrackerBinary == "" {
+		log.Fatalf("the path to the firecracker binary is required")
 	}
 
 	client, err := containerd.New(containerdSock)
@@ -100,6 +113,8 @@ func main() {
 	if err := resizeImage(*outFile); err != nil {
 		log.Fatalf("failed to resize the image %s: %s\n", *outFile, err)
 	}
+
+	bootVM(ctx, *outFile, *linuxKernel, *firecrackerBinary)
 }
 
 func extract(ctx context.Context, client *containerd.Client, image containerd.Image, mntDir string) error {
@@ -223,4 +238,66 @@ func writeToFile(filepath string, content string) error {
 		return fmt.Errorf("writeToFile %s: %v", filepath, err)
 	}
 	return nil
+}
+
+func bootVM(ctx context.Context, rawImage, linuxKernel, firecrackerBinary string) {
+	vmmCtx, vmmCancel := context.WithCancel(ctx)
+	defer vmmCancel()
+
+	devices := make([]models.Drive, 1)
+	devices[0] = models.Drive{
+		DriveID:      firecracker.String("1"),
+		PathOnHost:   &rawImage,
+		IsRootDevice: firecracker.Bool(true),
+		IsReadOnly:   firecracker.Bool(false),
+	}
+	fcCfg := firecracker.Config{
+		LogLevel:        "debug",
+		SocketPath:      firecrackerSock,
+		KernelImagePath: linuxKernel,
+		KernelArgs:      "console=ttyS0 reboot=k panic=1 pci=off init=/init.sh random.trust_cpu=on",
+		Drives:          devices,
+		MachineCfg: models.MachineConfiguration{
+			VcpuCount:   firecracker.Int64(1),
+			CPUTemplate: models.CPUTemplate("C3"),
+			HtEnabled:   firecracker.Bool(true),
+			MemSizeMib:  firecracker.Int64(512),
+		},
+		NetworkInterfaces: []firecracker.NetworkInterface{
+			{
+				CNIConfiguration: &firecracker.CNIConfiguration{
+					NetworkName: "c2vm",
+					IfName:      "eth0",
+				},
+			},
+		},
+	}
+
+	machineOpts := []firecracker.Opt{}
+
+	command := firecracker.VMCommandBuilder{}.
+		WithBin(firecrackerBinary).
+		WithSocketPath(fcCfg.SocketPath).
+		WithStdin(os.Stdin).
+		WithStdout(os.Stdout).
+		WithStderr(os.Stderr).
+		Build(ctx)
+	machineOpts = append(machineOpts, firecracker.WithProcessRunner(command))
+	m, err := firecracker.NewMachine(vmmCtx, fcCfg, machineOpts...)
+	if err != nil {
+		fmt.Printf("failed to start the vm: %+v\n", err)
+		os.Exit(1)
+	}
+
+	if err := m.Start(vmmCtx); err != nil {
+		fmt.Printf("failed to start the vm: %+v\n", err)
+		os.Exit(1)
+	}
+	defer m.StopVMM()
+
+	if err := m.Wait(vmmCtx); err != nil {
+		fmt.Printf("failed to start the vm: %+v\n", err)
+		os.Exit(1)
+	}
+	log.Print("Machine was started")
 }

@@ -10,6 +10,7 @@ require (
 	github.com/containerd/fifo v0.0.0-20210331061852-650e8a8a179d // indirect
 	github.com/containerd/typeurl v1.0.2 // indirect
 	github.com/docker/docker v20.10.6+incompatible
+	github.com/firecracker-microvm/firecracker-go-sdk v0.22.0
 	github.com/gogo/googleapis v1.4.1 // indirect
 	github.com/google/go-cmp v0.5.5 // indirect
 	github.com/google/renameio v0.1.0
