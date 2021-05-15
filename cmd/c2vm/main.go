@@ -187,6 +187,9 @@ func initScript(ctx context.Context, client *containerd.Client, image containerd
 	}
 
 	configBlob, err := content.ReadBlob(ctx, client.ContentStore(), config)
+	if err != nil {
+		return err
+	}
 	var imageSpec ocispec.Image
 	json.Unmarshal(configBlob, &imageSpec)
 	initCmd := strings.Join(imageSpec.Config.Cmd, " ")
