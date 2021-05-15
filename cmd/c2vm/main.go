@@ -41,9 +41,9 @@ var (
 func main() {
 	var (
 		containerName     = flag.String("container", "", "Name of the container")
-		outFile           = flag.String("out", "container.img", "firecracker output to create")
-		linuxKernel       = flag.String("linux-kernel", "", "path to the linux kernel to use")
-		firecrackerBinary = flag.String("firecracker-binary", "", "path to the firecracker binary")
+		outFile           = flag.String("out", "container.img", "Path to store the image")
+		kernel            = flag.String("kernel", "", "Path to the linux kernel image")
+		firecrackerBinary = flag.String("firecracker-binary", "", "Path to the firecracker binary")
 	)
 
 	flag.Parse()
@@ -52,7 +52,7 @@ func main() {
 		log.Fatal("a container is required")
 	}
 
-	if *linuxKernel == "" {
+	if *kernel == "" {
 		log.Fatalf("a linux kernel is required")
 	}
 
@@ -114,7 +114,7 @@ func main() {
 		log.Fatalf("failed to resize the image %s: %s\n", *outFile, err)
 	}
 
-	bootVM(ctx, *outFile, *linuxKernel, *firecrackerBinary)
+	bootVM(ctx, *outFile, *kernel, *firecrackerBinary)
 }
 
 func extract(ctx context.Context, client *containerd.Client, image containerd.Image, mntDir string) error {
@@ -240,7 +240,7 @@ func writeToFile(filepath string, content string) error {
 	return nil
 }
 
-func bootVM(ctx context.Context, rawImage, linuxKernel, firecrackerBinary string) {
+func bootVM(ctx context.Context, rawImage, kernel, firecrackerBinary string) {
 	vmmCtx, vmmCancel := context.WithCancel(ctx)
 	defer vmmCancel()
 
@@ -254,7 +254,7 @@ func bootVM(ctx context.Context, rawImage, linuxKernel, firecrackerBinary string
 	fcCfg := firecracker.Config{
 		LogLevel:        "debug",
 		SocketPath:      firecrackerSock,
-		KernelImagePath: linuxKernel,
+		KernelImagePath: kernel,
 		KernelArgs:      "console=ttyS0 reboot=k panic=1 acpi=off pci=off i8042.noaux i8042.nomux i8042.nopnp i8042.dumbkbd init=/init.sh random.trust_cpu=on",
 		Drives:          devices,
 		MachineCfg: models.MachineConfiguration{
