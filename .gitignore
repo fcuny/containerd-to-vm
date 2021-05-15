@@ -1,2 +1,5 @@
 /cmd/c2vm/c2vm
 /c2vm
+/hack/firecracker.tgz
+/hack/firecracker/
+/hack/linux/
