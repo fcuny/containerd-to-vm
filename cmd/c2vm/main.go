@@ -44,6 +44,7 @@ func main() {
 		outFile           = flag.String("out", "container.img", "Path to store the image")
 		kernel            = flag.String("kernel", "", "Path to the linux kernel image")
 		firecrackerBinary = flag.String("firecracker-binary", "", "Path to the firecracker binary")
+		metricsFifo       = flag.String("metrics-fifo", "", "FIFO to the firecracker metrics")
 	)
 
 	flag.Parse()
@@ -114,7 +115,7 @@ func main() {
 		log.Fatalf("failed to resize the image %s: %s\n", *outFile, err)
 	}
 
-	bootVM(ctx, *outFile, *kernel, *firecrackerBinary)
+	bootVM(ctx, *outFile, *kernel, *firecrackerBinary, *metricsFifo)
 }
 
 func extract(ctx context.Context, client *containerd.Client, image containerd.Image, mntDir string) error {
@@ -240,7 +241,7 @@ func writeToFile(filepath string, content string) error {
 	return nil
 }
 
-func bootVM(ctx context.Context, rawImage, kernel, firecrackerBinary string) {
+func bootVM(ctx context.Context, rawImage, kernel, firecrackerBinary, metricsFifo string) {
 	vmmCtx, vmmCancel := context.WithCancel(ctx)
 	defer vmmCancel()
 
@@ -257,6 +258,7 @@ func bootVM(ctx context.Context, rawImage, kernel, firecrackerBinary string) {
 		KernelImagePath: kernel,
 		KernelArgs:      "console=ttyS0 reboot=k panic=1 acpi=off pci=off i8042.noaux i8042.nomux i8042.nopnp i8042.dumbkbd init=/init.sh random.trust_cpu=on",
 		Drives:          devices,
+		MetricsFifo:     metricsFifo,
 		MachineCfg: models.MachineConfiguration{
 			VcpuCount:   firecracker.Int64(1),
 			CPUTemplate: models.CPUTemplate("C3"),
